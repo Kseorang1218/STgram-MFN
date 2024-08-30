@@ -18,14 +18,16 @@ def main(args):
     # set random seed
     utils.setup_seed(args.random_seed)
     # set device
-    cuda = args.cuda
-    device_ids = args.device_ids
-    args.dp = False
-    if not cuda or device_ids is None:
-        args.device = torch.device('cpu')
+    if torch.cuda.is_available():
+        args.cuda = True
+        args.device = torch.device('cuda')
+        args.device_ids = list(range(torch.cuda.device_count()))
+        args.dp = len(args.device_ids) > 1
     else:
-        args.device = torch.device(f'cuda:{device_ids[0]}')
-        if len(device_ids) > 1: args.dp = True
+        args.cuda = False
+        args.device = torch.device('cpu')
+        args.device_ids = None
+        args.dp = False
     # load data
     # train_dirs = args.train_dirs
     train_dirs = args.train_dirs + args.add_dirs
@@ -69,7 +71,7 @@ def main(args):
 
 def run():
     # init config parameters
-    params = utils.load_yaml(file_path='./config.yaml')
+    params = utils.load_yaml(file_path='./config_STgram.yaml')
     parser = argparse.ArgumentParser(description=params['description'])
     for key, value in params.items():
         parser.add_argument(f'--{key}', default=value, type=utils.set_type)
@@ -88,7 +90,16 @@ def run():
     args.logger.info(args.version)
     main(args)
     # save config file
-    utils.save_yaml_file(file_path=os.path.join(log_dir, 'config.yaml'), data=vars(args))
+
+    # YAML로 저장하기 전에 device 객체 제거 또는 변환
+    args_dict = vars(args)
+    args_dict['device'] = str(args_dict['device'])  # device 객체를 문자열로 변환
+    if 'writer' in args_dict:
+        del args_dict['writer']  # SummaryWriter 객체 제거
+    if 'logger' in args_dict:
+        del args_dict['logger']  # logger 객체 제거
+
+    utils.save_yaml_file(file_path=os.path.join(log_dir, 'config_STgram.yaml'), data=vars(args))
 
 
 if __name__ == '__main__':
